@@ -1,14 +1,15 @@
 'use client';
-// app/components/LanguageBuddy.tsx (updated to use UserProfile)
+// app/components/LanguageBuddy.tsx (updated with TTS support)
 
 import { useState, useEffect } from 'react';
 import AudioRecorder from './audio-recorder';
 import UserProfile, { UserProfileData } from './user-profile';
+import MessageItem from './message-item';
 
 interface Message {
     role: 'user' | 'assistant' | 'system';
     content: string;
-    detectedLanguage?: string;
+    detectedLanguage?: 'english' | 'japanese';
 }
 
 export default function LanguageBuddy() {
@@ -68,7 +69,8 @@ export default function LanguageBuddy() {
         if (!text.trim()) return;
 
         // Detect language (simple implementation)
-        const detectedLanguage = detectLanguage(text);
+        // const detectedLanguage = detectLanguage(text);
+        const detectedLanguage = 'japanese';
 
         // Add user message to the chat
         const userMessage: Message = {
@@ -81,54 +83,52 @@ export default function LanguageBuddy() {
         // Store the transcription
         setTranscription(text);
 
-        // In a complete implementation, you would send the text to ChatGPT API
-        // For this example, we'll just generate a simple response based on the profile
+        try {
+            // Show loading state
+            setMessages(prev => [
+                ...prev,
+                { role: 'system', content: 'Processing your message...' }
+            ]);
 
-        // Create a simple response based on detected language and user profile
-        let responseContent = '';
+            // Call the chat API for language processing
+            // In a real app, we would call an OpenAI-powered endpoint here
+            // For this example, we'll use a simplified response generation
 
-        if (detectedLanguage === 'japanese') {
-            // If user spoke Japanese
-            switch(userProfile.level) {
-                case 'beginner':
-                    responseContent = `I heard you speak in Japanese: "${text}"\n\nGreat attempt for a beginner! I would respond with simple phrases like "はい、わかります" (Yes, I understand) or "ありがとう" (Thank you).`;
-                    break;
-                case 'intermediate':
-                    responseContent = `あなたの日本語を聞きました: "${text}"\n\nなかなか上手ですね！(Your Japanese is pretty good!) Keep practicing and you'll continue to improve.`;
-                    break;
-                case 'advanced':
-                    responseContent = `素晴らしい日本語ですね！"${text}"\n\n日本語がとても流暢です。さらに練習を続けましょう。(Your Japanese is excellent. Let's continue practicing.)`;
-                    break;
-            }
-        } else {
-            // If user spoke English
-            switch(userProfile.level) {
-                case 'beginner':
-                    responseContent = `I heard: "${text}"\n\nSince you're a beginner, I'd say: "こんにちは" (Hello) or "お元気ですか？" (How are you?)`;
-                    break;
-                case 'intermediate':
-                    responseContent = `I heard: "${text}"\n\n日本語で話しましょうか？(Shall we speak in Japanese?) You could say: "${getJapaneseEquivalent(text, 'intermediate')}"`;
-                    break;
-                case 'advanced':
-                    responseContent = `I heard: "${text}"\n\n日本語に翻訳すると: "${getJapaneseEquivalent(text, 'advanced')}"\n\n複雑な表現も使ってみましょう！(Let's try using more complex expressions!)`;
-                    break;
-            }
+            // Simple wait to simulate API call
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Generate a response based on detected language and user profile
+            const responseContent = generateResponse(text, detectedLanguage, userProfile);
+
+            // Remove the loading message
+            setMessages(prev => prev.filter(msg => msg.content !== 'Processing your message...'));
+
+            // Add assistant message to the chat
+            const assistantMessage: Message = {
+                role: 'assistant',
+                content: responseContent,
+                // For TTS purposes, we use the opposite language of what was detected
+                // This means if the user spoke Japanese, we respond with English explanations
+                // And if they spoke English, we include Japanese examples
+                detectedLanguage: detectedLanguage === 'japanese' ? 'english' : 'japanese'
+            };
+
+            setMessages(prev => [...prev, assistantMessage]);
+        } catch (error) {
+            console.error('Error processing message:', error);
+
+            // Remove the loading message
+            setMessages(prev => prev.filter(msg => msg.content !== 'Processing your message...'));
+
+            // Add error message
+            setMessages(prev => [
+                ...prev,
+                {
+                    role: 'system',
+                    content: 'Sorry, there was an error processing your message.'
+                }
+            ]);
         }
-
-        // Add interests-based content if available
-        if (userProfile.interests.length > 0) {
-            const randomInterest = userProfile.interests[Math.floor(Math.random() * userProfile.interests.length)];
-            responseContent += `\n\nBy the way, I noticed you're interested in ${randomInterest}. Would you like to learn some Japanese vocabulary related to that?`;
-        }
-
-        // Add assistant message to the chat
-        const assistantMessage: Message = {
-            role: 'assistant',
-            content: responseContent,
-            detectedLanguage: detectedLanguage === 'japanese' ? 'english' : 'japanese' // For text-to-speech purposes
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
     };
 
     // Simple language detection
@@ -137,10 +137,56 @@ export default function LanguageBuddy() {
         return japaneseChars && japaneseChars.length > text.length * 0.3 ? 'japanese' : 'english';
     };
 
+    // Generate a response based on the user's message and profile
+    const generateResponse = (
+        text: string,
+        detectedLanguage: 'japanese' | 'english',
+        profile: UserProfileData
+    ): string => {
+        // In a real app, this would be a call to ChatGPT or similar
+        // Here we'll simulate responses
+        let response = '';
+
+        if (detectedLanguage === 'japanese') {
+            // If user spoke Japanese
+            switch(profile.level) {
+                case 'beginner':
+                    response = `I heard you speak in Japanese: "${text}"\n\nGreat attempt for a beginner! I would respond with simple phrases like "はい、わかります" (Yes, I understand) or "ありがとう" (Thank you).`;
+                    break;
+                case 'intermediate':
+                    response = `あなたの日本語を聞きました: "${text}"\n\nなかなか上手ですね！(Your Japanese is pretty good!) Keep practicing and you'll continue to improve.`;
+                    break;
+                case 'advanced':
+                    response = `素晴らしい日本語ですね！"${text}"\n\n日本語がとても流暢です。さらに練習を続けましょう。(Your Japanese is excellent. Let's continue practicing.)`;
+                    break;
+            }
+        } else {
+            // If user spoke English
+            switch(profile.level) {
+                case 'beginner':
+                    response = `I heard: "${text}"\n\nSince you're a beginner, I'd say: "こんにちは" (Hello) or "お元気ですか？" (How are you?)`;
+                    break;
+                case 'intermediate':
+                    response = `I heard: "${text}"\n\n日本語で話しましょうか？(Shall we speak in Japanese?) You could say: "${getJapaneseEquivalent(text, 'intermediate')}"`;
+                    break;
+                case 'advanced':
+                    response = `I heard: "${text}"\n\n日本語に翻訳すると: "${getJapaneseEquivalent(text, 'advanced')}"\n\n複雑な表現も使ってみましょう！(Let's try using more complex expressions!)`;
+                    break;
+            }
+        }
+
+        // Add interests-based content if available
+        if (profile.interests.length > 0) {
+            const randomInterest = profile.interests[Math.floor(Math.random() * profile.interests.length)];
+            response += `\n\nBy the way, I noticed you're interested in ${randomInterest}. Would you like to learn some Japanese vocabulary related to that?`;
+        }
+
+        return response;
+    };
+
     // Simple placeholder function to simulate Japanese translation
     const getJapaneseEquivalent = (text: string, level: string): string => {
-        // In a real app, this would call an API or use a more sophisticated method
-        // Here we're just returning placeholder content based on level
+        // In a real app, this would call an AI translation service
         if (text.toLowerCase().includes('hello') || text.toLowerCase().includes('hi')) {
             return 'こんにちは';
         }
@@ -185,21 +231,12 @@ export default function LanguageBuddy() {
                 </div>
 
                 {messages.map((message, index) => (
-                    <div
+                    <MessageItem
                         key={index}
-                        className={`mb-4 p-3 rounded-lg ${
-                            message.role === 'user'
-                                ? 'bg-blue-100 ml-auto max-w-[80%]'
-                                : message.role === 'assistant'
-                                    ? 'bg-green-100 max-w-[80%]'
-                                    : 'bg-gray-200 text-center mx-auto'
-                        }`}
-                    >
-                        <div className="text-sm font-semibold mb-1">
-                            {message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Language Buddy' : 'System'}
-                        </div>
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                    </div>
+                        role={message.role}
+                        content={message.content}
+                        detectedLanguage={message.detectedLanguage}
+                    />
                 ))}
             </div>
 

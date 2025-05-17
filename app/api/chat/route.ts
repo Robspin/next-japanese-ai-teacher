@@ -25,13 +25,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Create a system prompt based on detected language
-        const systemPrompt = detectedLanguage === 'japanese'
-            ? `You are a helpful Japanese language tutor. The user is speaking in Japanese. 
-         Respond in simple Japanese, and provide gentle corrections if there are any mistakes.
+        const systemPrompt = `You are a helpful Japanese language tutor. The user is speaking in Japanese. 
+         Respond in Japanese. Answer the questions and when necessary expand on certain vocabulary points. 
          If needed, include English translations in parentheses.`
-            : `You are a helpful Japanese language tutor. The user is speaking in English.
-         Respond primarily in English, but incorporate simple Japanese phrases where appropriate.
-         Include romaji and translations for any Japanese you use.`;
 
         // Call ChatGPT API
         const completion = await openai.chat.completions.create({
